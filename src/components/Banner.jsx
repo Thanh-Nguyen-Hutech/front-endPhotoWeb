@@ -14,7 +14,7 @@ const Banner = () => {
           Lưu giữ khoảnh khắc
         </h1>
         <h2 className="text-5xl md:text-7xl font-black text-photo-gold mb-6 tracking-tighter drop-shadow-[0_0_15px_rgba(250,204,21,0.3)]">
-          CÙNG PHOTONOW
+          CÙNG FOTOZ
         </h2>
         <p className="text-gray-400 text-lg mb-8 font-medium">
           Nền tảng kết nối nhiếp ảnh gia chuyên nghiệp hàng đầu Việt Nam.
