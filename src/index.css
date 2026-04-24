@@ -2,12 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-photo-black text-white antialiased;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+@layer base {
+  body {
+    /* Sử dụng màu xanh navy đậm nhất làm nền */
+    @apply bg-brand-darkest text-white antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
 }
 
-/* Hiệu ứng kính mờ (Glassmorphism) cực sang */
-.glass {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+@layer components {
+  /* Mix màu vào hiệu ứng kính mờ */
+  .glass {
+    @apply bg-brand-primary/20 backdrop-blur-xl border border-brand-medium/20 shadow-2xl;
+  }
+
+  /* Tạo một class cho Card chuyên nghiệp */
+  .brand-card {
+    @apply bg-brand-primary/40 border border-brand-medium/30 rounded-2xl p-6 transition-all hover:border-brand-lightest/50;
+  }
 }
