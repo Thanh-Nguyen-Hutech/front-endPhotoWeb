@@ -18,7 +18,7 @@ const JobCard = ({ job, onAccept }) => {
             </p>
           </div>
         </div>
-
+//fhfgssf
         <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
           <span className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
             <MapPin size={14} className="text-photo-gold"/> {job.location}
