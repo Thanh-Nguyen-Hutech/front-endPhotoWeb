@@ -15,13 +15,11 @@ const Login = ({ onLoginSuccess }) => {
     setErrorMsg('');    
 
     try {
-      // Gọi API đăng nhập tới Backend
       const response = await axios.post('https://localhost:7275/api/Auth/login', {
         email: email,
         password: password
       });
 
-      // Nếu API trả về thành công (có thể kiểm tra response.data.isSuccess tùy logic Backend)
       if (response.data) {
         // 🚩 LƯU TRỮ ĐẦY ĐỦ THÔNG TIN VÀO LOCAL STORAGE
         localStorage.setItem('token', response.data.token);
@@ -40,11 +38,8 @@ const Login = ({ onLoginSuccess }) => {
 
         alert("Đăng nhập thành công!");
         
-        // Phương án 1: Dùng window.location.href để ép trình duyệt tải lại toàn bộ trang (chắc chắn nhất)
         window.location.href = '/'; 
         
-        // Phương án 2 (tùy chọn): Nếu dùng onLoginSuccess thì chỉ cần navigate('/')
-        // navigate('/'); 
       }
 
     } catch (error) {

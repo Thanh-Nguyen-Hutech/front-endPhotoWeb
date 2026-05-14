@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom'; // 🌟 THÊM IMPORT NÀY
 import axiosClient from './utils/axiosClient';
 import Navbar from './components/Navbar';
-import { Sparkles, Send, MapPin, Type, Calendar, Wallet } from 'lucide-react'; // Thêm icon Wallet
+import { Sparkles, Send, MapPin, Type, Calendar, Wallet, UserCircle } from 'lucide-react'; // 🌟 THÊM UserCircle
 
 const categories = [
   { id: 'canhan', name: 'Cá nhân', image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=500&auto=format&fit=crop' },
@@ -12,17 +13,19 @@ const categories = [
 ];
 
 const BookingForm = () => {
+  // 🌟 KHỞI TẠO HOOK ĐỂ NHẬN DỮ LIỆU TỪ TRANG PROFILE
+  const location = useLocation();
+  const navigate = useNavigate();
+  const directPhotographer = location.state || null;
+
   const [selectedCategory, setSelectedCategory] = useState(null);
-  
   const [title, setTitle] = useState('');
-  const [location, setLocation] = useState('');
+  const [bookingLocation, setBookingLocation] = useState(''); // Đổi tên để tránh trùng với location của react-router
   const [shootingDate, setShootingDate] = useState('');
-  
-  // 1. Thêm State lưu giá tiền
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
-  
   const [details, setDetails] = useState('');
+  const [loading, setLoading] = useState(false); // Thêm state loading để chống spam click
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,6 +35,8 @@ const BookingForm = () => {
       return;
     }
 
+    setLoading(true);
+
     try {
       const payload = {
         title: title,
@@ -39,24 +44,24 @@ const BookingForm = () => {
         serviceType: selectedCategory,
         includeMakeup: false,
         includeStudio: false,
-        // 2. Chuyển giá từ dạng chữ sang số (nếu bỏ trống thì mặc định là 0)
         minPrice: minPrice ? Number(minPrice) : 0,
         maxPrice: maxPrice ? Number(maxPrice) : 0,
         shootingDate: new Date(shootingDate).toISOString(),
-        location: location
+        location: bookingLocation,
+        // 🌟 GỬI KÈM ID THỢ NẾU LÀ ĐẶT TRỰC TIẾP
+        photographerId: directPhotographer ? directPhotographer.photographerId : null
       };
 
       await axiosClient.post('/Bookings', payload);
 
-      alert(`🎉 Tuyệt vời! Yêu cầu "${title}" đã được gửi thành công.`);
+      if (directPhotographer) {
+        alert(`🎉 Tuyệt vời! Đã gửi yêu cầu trực tiếp đến nghệ sĩ ${directPhotographer.photographerName}.`);
+      } else {
+        alert(`🎉 Tuyệt vời! Yêu cầu "${title}" đã được đăng lên hệ thống tìm thợ thành công.`);
+      }
       
-      setTitle('');
-      setLocation('');
-      setShootingDate('');
-      setMinPrice('');
-      setMaxPrice('');
-      setDetails('');
-      setSelectedCategory(null);
+      // Chuyển hướng về trang Lịch sử để khách xem tiến độ đơn
+      navigate('/my-history');
 
     } catch (error) {
       console.error("Lỗi API chi tiết:", error.response?.data);
@@ -64,8 +69,10 @@ const BookingForm = () => {
         alert("Bạn cần Đăng Nhập để có thể đặt lịch nhé!");
       } else {
         const errorMsg = error.response?.data?.title || JSON.stringify(error.response?.data?.errors) || "Lỗi không xác định";
-        alert(`Lỗi 400 từ Backend: ${errorMsg}`);
+        alert(`Lỗi từ Backend: ${errorMsg}`);
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,10 +81,22 @@ const BookingForm = () => {
       <Navbar />
       
       <main className="pt-28 px-6 pb-12 max-w-[1200px] mx-auto">
-        <div className="bg-photo-gold/10 border border-photo-gold/20 text-photo-gold px-6 py-4 rounded-xl mb-10 flex items-center gap-3 font-bold">
-          <Sparkles size={20} />
-          Mới: Đăng yêu cầu tìm thợ chụp ảnh chỉ với vài bước đơn giản.
-        </div>
+        
+        {/* 🌟 NẾU ĐẶT TRỰC TIẾP, HIỂN THỊ BANNER ĐẶC BIỆT */}
+        {directPhotographer ? (
+          <div className="mb-10 p-6 bg-gradient-to-r from-photo-gold/20 to-transparent border-l-4 border-photo-gold rounded-r-2xl flex items-center gap-4 animate-in slide-in-from-left-4">
+            <UserCircle size={40} className="text-photo-gold" />
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Đang đặt lịch trực tiếp với</p>
+              <h2 className="text-2xl font-black text-photo-gold uppercase tracking-tighter">{directPhotographer.photographerName}</h2>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-photo-gold/10 border border-photo-gold/20 text-photo-gold px-6 py-4 rounded-xl mb-10 flex items-center gap-3 font-bold">
+            <Sparkles size={20} />
+            Mới: Đăng yêu cầu tìm thợ chụp ảnh chỉ với vài bước đơn giản.
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-10">
           
@@ -100,7 +119,7 @@ const BookingForm = () => {
                   <div className="h-32 sm:h-40 overflow-hidden">
                     <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
                   </div>
-                  <div className={`p-4 text-center font-bold ${selectedCategory === cat.name ? 'bg-photo-gold text-black' : 'bg-white/5 text-white'}`}>
+                  <div className={`p-4 text-center font-bold transition-colors ${selectedCategory === cat.name ? 'bg-photo-gold text-black' : 'bg-white/5 text-white'}`}>
                     {cat.name}
                   </div>
                 </div>
@@ -109,44 +128,43 @@ const BookingForm = () => {
           </div>
 
           <div className="w-full lg:w-1/3">
-            <div className="glass p-8 rounded-3xl sticky top-28 border-t-4 border-t-photo-gold">
+            <div className="glass p-8 rounded-3xl sticky top-28 border-t-4 border-t-photo-gold shadow-2xl">
               <h3 className="text-xl font-bold text-white mb-6">Chi tiết yêu cầu</h3>
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 
-                <div className="relative">
-                  <Type className="absolute left-3 top-3 text-gray-500" size={20} />
+                <div className="relative group">
+                  <Type className="absolute left-3 top-3 text-gray-500 group-focus-within:text-photo-gold transition-colors" size={20} />
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tiêu đề (Vd: Chụp kỷ yếu lớp)" className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-photo-gold outline-none transition-all" required />
                 </div>
 
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 text-gray-500" size={20} />
-                  <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Địa điểm (Vd: Hồ Gươm, Hà Nội)" className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-photo-gold outline-none transition-all" required />
+                <div className="relative group">
+                  <MapPin className="absolute left-3 top-3 text-gray-500 group-focus-within:text-photo-gold transition-colors" size={20} />
+                  <input type="text" value={bookingLocation} onChange={(e) => setBookingLocation(e.target.value)} placeholder="Địa điểm (Vd: Hồ Gươm, Hà Nội)" className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-photo-gold outline-none transition-all" required />
                 </div>
 
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-3 text-gray-500" size={20} />
+                <div className="relative group">
+                  <Calendar className="absolute left-3 top-3 text-gray-500 group-focus-within:text-photo-gold transition-colors" size={20} />
                   <input type="date" value={shootingDate} onChange={(e) => setShootingDate(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-photo-gold outline-none transition-all [color-scheme:dark]" required />
                 </div>
 
-                {/* 3. Thêm khu vực nhập Ngân sách */}
                 <div className="flex gap-3">
-                  <div className="relative w-1/2">
-                    <Wallet className="absolute left-3 top-3 text-gray-500" size={20} />
+                  <div className="relative w-1/2 group">
+                    <Wallet className="absolute left-3 top-3 text-gray-500 group-focus-within:text-photo-gold transition-colors" size={20} />
                     <input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="Giá từ" className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-photo-gold outline-none transition-all" />
                   </div>
-                  <div className="relative w-1/2">
+                  <div className="relative w-1/2 group">
                     <span className="absolute left-3 top-3 text-gray-500 font-bold">-</span>
                     <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Đến (VNĐ)" className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-8 pr-4 text-white focus:border-photo-gold outline-none transition-all" />
                   </div>
                 </div>
 
                 <div>
-                  <textarea value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Mô tả chi tiết yêu cầu của bạn..." className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white focus:border-photo-gold outline-none transition-all resize-none h-28" required></textarea>
+                  <textarea value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Mô tả chi tiết yêu cầu của bạn..." className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white focus:border-photo-gold outline-none transition-all resize-none h-28 custom-scrollbar" required></textarea>
                 </div>
 
-                <button type="submit" className="w-full bg-photo-gold text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-400 hover:shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all active:scale-[0.98]">
-                  XÁC NHẬN YÊU CẦU <Send size={20} />
+                <button type="submit" disabled={loading} className="w-full bg-photo-gold text-black font-black py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-400 hover:shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all active:scale-[0.98] disabled:opacity-70">
+                  {loading ? 'ĐANG XỬ LÝ...' : 'XÁC NHẬN YÊU CẦU'} <Send size={20} />
                 </button>
               </form>
             </div>

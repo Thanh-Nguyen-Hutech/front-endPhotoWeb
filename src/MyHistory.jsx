@@ -1,137 +1,172 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import axiosClient from './utils/axiosClient';
-import { History, XCircle, Clock, CheckCircle, Calendar, MapPin, Tag, MessageCircle, CheckSquare, UserCircle } from 'lucide-react';
+import ChatRoom from './components/ChatRoom';
+import ReceivedGallery from './components/ReceivedGallery'; // 🌟 Import component đã đổi tên
+import { History, XCircle, Clock, CheckCircle, Calendar, MapPin, MessageCircle, CheckSquare, UserCircle, CreditCard, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 const MyHistory = () => {
   const [historyList, setHistoryList] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [selectedChat, setSelectedChat] = useState(null); 
+  const [showChatModal, setShowChatModal] = useState(false);
+
+  const [selectedGallery, setSelectedGallery] = useState(null);
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
+
+  const currentUserFullName = localStorage.getItem('fullName') || "Khách hàng";
+  const token = localStorage.getItem('token');
+  let currentUserId = "";
+
+  if (token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const payload = JSON.parse(jsonPayload);
+      currentUserId = payload.nameid; // Đồng nhất ID để chat
+    } catch (error) {
+      console.error("Token error:", error);
+    }
+  }
 
   const fetchHistory = async () => {
     try {
       const response = await axiosClient.get('/Bookings/my-history');
       setHistoryList([...response.data].reverse());
     } catch (error) {
-      console.error("Lỗi khi tải lịch sử:", error);
+      console.error("Fetch error:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
-  const handleCancel = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn hủy lịch chụp này không? Hành động này không thể hoàn tác.")) return;
-    try {
-      const response = await axiosClient.patch(`/Bookings/${id}/cancel`); 
-      alert(`✅ ${response.data?.message || 'Hủy đơn thành công!'}`);
-      fetchHistory(); 
-    } catch (error) {
-      alert(error.response?.data?.message || "Không thể hủy đơn hàng này.");
-    }
-  };
+  useEffect(() => { fetchHistory(); }, []);
 
   const handleComplete = async (id) => {
-    if (!window.confirm("Xác nhận buổi chụp đã diễn ra thành công?")) return;
+    if (!window.confirm("Xác nhận buổi chụp đã kết thúc và bạn hài lòng?")) return;
     try {
-      const response = await axiosClient.put(`/Bookings/${id}/complete`);
-      alert(`🎉 ${response.data?.message || 'Đã xác nhận hoàn thành! Cảm ơn bạn đã sử dụng dịch vụ.'}`);
+      await axiosClient.put(`/Bookings/${id}/complete`);
       fetchHistory(); 
     } catch (error) {
-      alert(error.response?.data?.message || "Không thể xác nhận lúc này.");
+      alert("Lỗi xác nhận.");
     }
   };
 
-  const handleContact = (item) => {
-    const partnerName = item.photographerName || "Nhiếp ảnh gia";
-    const contactInfo = item.phoneNumber ? `Số điện thoại: ${item.phoneNumber}` : "Thợ ảnh chưa cập nhật số điện thoại.";
-    alert(`📞 Kênh liên hệ với ${partnerName}\n\n${contactInfo}`);
+  const handlePayment = async (bookingId, amount) => {
+    try {
+      const res = await axiosClient.post('/Payments/create-url', { bookingId, amount });
+      window.location.href = res.data.url;
+    } catch (error) {
+      alert("Cổng thanh toán đang bảo trì.");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
       <Navbar />
-      <main className="pt-28 px-4 sm:px-6 pb-12 max-w-[1000px] mx-auto">
-        <div className="flex items-center gap-3 mb-10 border-l-4 border-photo-gold pl-4 animate-in slide-in-from-left-4 duration-500">
-          <History className="text-photo-gold" size={32} />
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tighter uppercase">Lịch sử đã đặt</h2>
+      <main className="pt-28 px-4 sm:px-6 pb-12 max-w-[1100px] mx-auto">
+        <div className="flex items-center gap-3 mb-10 border-l-4 border-photo-gold pl-5 animate-in slide-in-from-left-4 duration-700">
+          <History className="text-photo-gold" size={36} />
+          <h2 className="text-3xl font-black tracking-tighter uppercase">Lịch sử đặt lịch</h2>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20 text-photo-gold"><div className="w-10 h-10 border-4 border-photo-gold border-t-transparent rounded-full animate-spin"></div></div>
-        ) : historyList.length === 0 ? (
-          <div className="glass text-center text-gray-500 py-20 rounded-[32px] border border-dashed border-white/10 animate-in fade-in duration-500">
-            <p className="text-lg font-bold">Chưa có dữ liệu lịch sử.</p>
-          </div>
+          <div className="flex justify-center py-20"><Loader2 className="animate-spin text-photo-gold" size={48} /></div>
         ) : (
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6">
             {historyList.map((item, index) => {
-              // ✅ BỘ LỌC THÔNG MINH BẤT CHẤP LỖI CHÍNH TẢ TỪ BACKEND
-              const s = item.status?.toLowerCase() || '';
-              const isPending = ['pending', 'waiting'].includes(s);
-              const isAccepted = ['accepted', 'confirmed', 'approved'].includes(s);
-              const isCompleted = ['completed', 'done', 'finished', 'success'].includes(s);
-              const isCancelled = ['cancelled', 'canceled', 'cancel', 'rejected', 'reject', 'declined'].includes(s);
+              const status = item.status?.toLowerCase() || '';
+              const isAccepted = ['accepted', 'confirmed'].includes(status);
+              const isCompleted = ['completed', 'done', 'success'].includes(status);
+              const isPaid = status === 'paid'; 
+              const isCancelled = ['cancelled', 'rejected'].includes(status);
 
               return (
-                <div key={item.id} className="glass p-6 sm:p-8 rounded-[32px] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border border-white/5 hover:border-photo-gold/30 transition-all duration-300 group shadow-lg shadow-black/50 animate-in slide-in-from-bottom-4" style={{ animationFillMode: 'both', animationDelay: `${index * 100}ms` }}>
+                <div key={item.id} className="glass p-6 sm:p-10 rounded-[40px] flex flex-col md:flex-row justify-between items-center gap-8 border border-white/5 hover:border-photo-gold/20 transition-all duration-500 shadow-2xl group">
                   
-                  <div className="flex-1 space-y-5 w-full">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-2xl border shadow-inner ${item.photographerName ? 'bg-gradient-to-tr from-photo-gold/20 to-orange-500/20 text-photo-gold border-photo-gold/30' : 'bg-white/5 text-gray-500 border-white/10'}`}>
-                        {item.photographerName ? item.photographerName.charAt(0).toUpperCase() : <UserCircle size={24} />}
+                  <div className="flex-1 space-y-6 w-full">
+                    <div className="flex items-center gap-5">
+                      <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-photo-gold/20 to-orange-500/10 flex items-center justify-center text-photo-gold font-black border border-photo-gold/20 text-3xl shadow-lg group-hover:scale-110 transition-transform">
+                        {item.photographerName?.charAt(0) || "P"}
                       </div>
                       <div>
-                        <h3 className="text-xl font-black text-white group-hover:text-photo-gold transition-colors">{item.photographerName || "Đang chờ thợ nhận lịch..."}</h3>
-                        <div className="mt-2">
-                          {/* HIỂN THỊ BADGE STATUS */}
-                          {isPending && <span className="flex items-center gap-1 w-fit text-photo-gold bg-photo-gold/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-photo-gold/20"><Clock size={12}/> Đang chờ thợ</span>}
-                          {isAccepted && <span className="flex items-center gap-1 w-fit text-blue-400 bg-blue-400/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-400/20"><CheckCircle size={12}/> Thợ đã nhận kèo</span>}
-                          {isCompleted && <span className="flex items-center gap-1 w-fit text-green-400 bg-green-400/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-400/20"><CheckSquare size={12}/> Đã hoàn thành</span>}
-                          {isCancelled && <span className="flex items-center gap-1 w-fit text-red-400 bg-red-400/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-red-400/20"><XCircle size={12}/> Đã hủy</span>}
+                        <h3 className="text-2xl font-black group-hover:text-photo-gold transition-colors">{item.photographerName || "Chờ thợ nhận..."}</h3>
+                        <div className="flex gap-2 mt-2">
+                           {isPaid && <span className="text-[10px] bg-green-500/10 text-green-400 px-3 py-1 rounded-full font-black border border-green-400/20 uppercase tracking-widest">Đã cọc</span>}
+                           {isCompleted && <span className="text-[10px] bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full font-black border border-blue-400/20 uppercase tracking-widest">Hoàn thành</span>}
+                           {isCancelled && <span className="text-[10px] bg-red-500/10 text-red-400 px-3 py-1 rounded-full font-black border border-red-400/20 uppercase tracking-widest">Đã hủy</span>}
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-x-6 gap-y-3 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-widest bg-white/5 p-4 rounded-2xl border border-white/5">
-                      <span className="flex items-center gap-2"><Calendar size={16} className="text-photo-gold"/> {item.bookingDate ? new Date(item.bookingDate).toLocaleDateString('vi-VN') : "N/A"}</span>
-                      <span className="flex items-center gap-2"><MapPin size={16} className="text-photo-gold"/> {item.location}</span>
+                    
+                    <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-400 uppercase tracking-[0.1em] bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <span className="flex items-center gap-2"><Calendar size={16} className="text-photo-gold"/> {new Date(item.bookingDate).toLocaleDateString('vi-VN')}</span>
+                        <span className="flex items-center gap-2"><MapPin size={16} className="text-photo-gold"/> {item.location}</span>
                     </div>
                   </div>
 
-                  <div className="flex flex-col md:items-end gap-4 w-full md:w-auto md:min-w-[180px] pt-4 md:pt-0 border-t md:border-t-0 border-white/10">
-                    <p className="text-2xl font-black text-photo-gold tracking-tighter">
-                        {item.maxPrice > 0 ? `${item.minPrice.toLocaleString()} - ${item.maxPrice.toLocaleString()} ₫` : "THỎA THUẬN"}
-                    </p>
+                  <div className="flex flex-col md:items-end gap-4 w-full md:w-auto min-w-[220px]">
+                    <div className="text-3xl font-black text-photo-gold tracking-tighter">
+                        {item.maxPrice > 0 ? `${item.minPrice.toLocaleString()} ₫` : "GIÁ THỎA THUẬN"}
+                    </div>
                     
-                    <div className="w-full space-y-2 mt-2">
-                      {/* Nút Hoàn thành */}
-                      {isAccepted && (
-                        <button onClick={() => handleComplete(item.id)} className="w-full flex items-center justify-center gap-2 bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500 hover:text-black px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95">
-                          <CheckSquare size={16} /> Xác nhận hoàn thành
+                    <div className="w-full flex flex-col gap-2">
+                      {isAccepted && !isPaid && (
+                        <button onClick={() => handlePayment(item.id, 500000)} className="w-full py-4 bg-blue-600/20 text-blue-400 border border-blue-600/30 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                          <CreditCard size={16} /> Thanh toán cọc (VNPay)
                         </button>
                       )}
 
-                      {/* Nút Liên hệ */}
-                      {item.photographerName && (!isCancelled && !isCompleted) && (
-                        <button onClick={() => handleContact(item)} className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95">
+                      {/* NÚT VÀNG: XEM ẢNH - Chỉ hiện khi hoàn thành */}
+                      {isCompleted && (
+                        <button 
+                          onClick={() => { setSelectedGallery(item); setShowGalleryModal(true); }} 
+                          className="w-full py-4 bg-photo-gold text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-[1.05] transition-all shadow-[0_10px_20px_rgba(250,195,33,0.3)] active:scale-95 flex items-center justify-center gap-2"
+                        >
+                          <ImageIcon size={18} /> Xem & Tải ảnh về
+                        </button>
+                      )}
+
+                      {item.photographerName && !isCancelled && !isCompleted && (
+                        <button onClick={() => handleOpenChat(item)} className="w-full py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-black text-[10px] uppercase transition-all flex items-center justify-center gap-2">
                           <MessageCircle size={16} /> Nhắn tin cho thợ
                         </button>
                       )}
-
-                      {/* Nút Hủy đơn */}
-                      {(isPending || isAccepted) && (
-                        <button onClick={() => handleCancel(item.id)} className="w-full flex items-center justify-center gap-2 bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95">
-                          <XCircle size={16} /> Hủy Lịch Chụp
-                        </button>
-                      )}
                     </div>
                   </div>
-
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* MODAL CHAT */}
+        {showChatModal && selectedChat && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <div className="relative w-full max-w-2xl bg-[#0a0a0a] rounded-[40px] border border-photo-gold/30 shadow-2xl">
+              <button onClick={() => setShowChatModal(false)} className="absolute -top-3 -right-3 bg-red-500 text-white p-2 rounded-full hover:scale-110 transition-all shadow-xl z-20"><XCircle size={24} /></button>
+              <ChatRoom bookingId={selectedChat.id} currentUser={currentUserFullName} currentUserId={currentUserId} isPaid={selectedChat.status === 'paid' || selectedChat.status === 'completed'} />
+            </div>
+          </div>
+        )}
+
+        {/* MODAL GALLERY (FULLSCREEN OVERLAY) */}
+        {showGalleryModal && selectedGallery && (
+          <div className="fixed inset-0 z-[150] flex flex-col bg-[#050505] overflow-y-auto animate-in slide-in-from-bottom-full duration-500">
+            <div className="sticky top-0 z-20 bg-[#050505]/95 backdrop-blur-2xl border-b border-white/10 p-5 px-8 flex justify-between items-center shadow-2xl">
+              <div>
+                <h3 className="font-black text-white uppercase tracking-widest text-xl">Phòng Nhận Ảnh</h3>
+                <p className="text-[10px] text-photo-gold font-black uppercase mt-1">Photo: {selectedGallery.photographerName}</p>
+              </div>
+              <button onClick={() => setShowGalleryModal(false)} className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-500/10 transition-all"><XCircle size={36} /></button>
+            </div>
+            <div className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-10">
+               <ReceivedGallery bookingId={selectedGallery.id} />
+            </div>
           </div>
         )}
       </main>

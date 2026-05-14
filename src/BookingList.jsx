@@ -13,7 +13,6 @@ const BookingList = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Kiểm tra Role để quyết định hiển thị
   const userRole = localStorage.getItem('role')?.trim().toLowerCase();
   const isPhotographer = userRole === 'photographer';
 
@@ -26,23 +25,14 @@ const BookingList = () => {
       setLoading(true);
       try {
         if (isPhotographer) {
-          // Lấy Job cho thợ
           const res = await axiosClient.get('/Bookings/requests-feed');
           setData(Array.isArray(res.data) ? res.data : []);
         } else {
-          // Lấy Thợ cho khách
           const res = await axiosClient.get('/Users/photographers');
           setData(Array.isArray(res.data) ? res.data : []);
         }
       } catch (error) {
         console.error("Lỗi tải dữ liệu:", error);
-        // Hiện dữ liệu mẫu nếu API chưa xong để không bị trống trang
-        if (!isPhotographer) {
-            setData([
-                { id: 1, fullName: "Thanh Taola", location: "Hồ Chí Minh", basePrice: 1500000, concepts: ["Cổ trang", "Cá nhân"], rating: 5.0, phoneNumber: "0901234567" },
-                { id: 2, fullName: "Phạm Nam", location: "Bình Dương", basePrice: 800000, concepts: ["Kỷ yếu", "Sự kiện"], rating: 4.9, phoneNumber: "0907654321" }
-            ]);
-        }
       } finally {
         setLoading(false);
       }
@@ -53,24 +43,37 @@ const BookingList = () => {
   const filteredData = useMemo(() => {
     return data.filter(item => {
       const nameToSearch = isPhotographer ? item.title : item.fullName;
-      const matchName = nameToSearch?.toLowerCase().includes(search.toLowerCase());
-      const matchLoc = item.location?.toLowerCase().includes(location.toLowerCase());
+      const safeName = nameToSearch || '';
       
-      const itemConcepts = isPhotographer ? [item.serviceType] : item.concepts;
+      const safeLoc = item.address || item.location || '';
+      
+      const matchName = safeName.toLowerCase().includes(search.toLowerCase());
+      const matchLoc = safeLoc.toLowerCase().includes(location.toLowerCase());
+      
+      let itemConcepts = [];
+      if (isPhotographer) {
+        itemConcepts = [item.serviceType];
+      } else {
+        const rawConcepts = item.concepts || item.Concepts;
+        if (typeof rawConcepts === 'string') {
+          itemConcepts = rawConcepts.split(',').map(c => c.trim());
+        } else if (Array.isArray(rawConcepts)) {
+          itemConcepts = rawConcepts;
+        }
+      }
+
       const matchConcept = selectedConcepts.length === 0 || 
-                           selectedConcepts.some(c => itemConcepts?.includes(c));
+                           selectedConcepts.some(c => itemConcepts.includes(c));
       
       return matchName && matchLoc && matchConcept;
     });
   }, [data, search, location, selectedConcepts, isPhotographer]);
 
-  // ✅ Hàm nhận Job cho thợ ảnh
   const handleAcceptJob = async (jobId) => {
     if (!window.confirm("Bạn muốn nhận buổi chụp này?")) return;
     try {
       const res = await axiosClient.put(`/Bookings/${jobId}/accept`);
       alert(`🎉 ${res.data.message || 'Nhận Job thành công!'}`);
-      // Load lại danh sách
       const reload = await axiosClient.get('/Bookings/requests-feed');
       setData(reload.data);
     } catch (err) { 
@@ -95,8 +98,7 @@ const BookingList = () => {
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={16} />
                   <input 
-                    type="text" 
-                    placeholder={isPhotographer ? "Tên buổi chụp..." : "Tên thợ ảnh..."}
+                    type="text" placeholder={isPhotographer ? "Tên buổi chụp..." : "Tên thợ ảnh..."}
                     className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-xs focus:border-photo-gold outline-none transition-all"
                     value={search} onChange={(e) => setSearch(e.target.value)}
                   />
@@ -150,7 +152,6 @@ const BookingList = () => {
             <div className={isPhotographer ? "flex flex-col gap-5" : "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8"}>
               {filteredData.map(item => (
                 isPhotographer ? (
-                  /* ✅ HIỆN CHO THỢ */
                   <JobCard 
                     key={item.id} 
                     onAccept={handleAcceptJob}
@@ -158,17 +159,23 @@ const BookingList = () => {
                       id: item.id, 
                       title: item.title, 
                       author: item.customer?.fullName || item.customerName || "Khách hàng",
-                      location: item.location, 
+                      location: item.address || item.location || "Thỏa thuận",
                       type: item.serviceType,
                       price: item.maxPrice > 0 ? `${item.minPrice.toLocaleString()} - ${item.maxPrice.toLocaleString()} ₫` : "Thỏa thuận"
                     }} 
                   />
                 ) : (
-                  /* ✅ HIỆN CHO KHÁCH */
+                  /* ✅ ĐÃ CẬP NHẬT: Trỏ đến Link ID và lấy chính xác Số điện thoại */
                   <PhotographerCard 
                     key={item.id} 
-                    photographer={item} 
-                    onClick={() => navigate(`/profile/${encodeURIComponent(item.fullName)}`)}
+                    photographer={{
+                      ...item,
+                      location: item.address || item.location || "Toàn quốc",
+                      phoneNumber: item.phoneNumber,
+                      basePrice: item.basePrice > 0 ? item.basePrice : 0, 
+                      avatar: item.avatar || "https://images.unsplash.com/photo-1554080353-a576cf803bda?q=80&w=1000&auto=format&fit=crop"
+                    }} 
+                    onClick={() => navigate(`/profile/${item.id}`)}
                   />
                 )
               ))}

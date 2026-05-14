@@ -9,12 +9,15 @@ const PhotographerCard = ({ photographer, onClick }) => {
     alert(`📞 Liên hệ với ${photographer.fullName}:\nSố điện thoại: ${phone}`);
   };
 
+  // ✅ Xử lý an toàn mảng concepts (đề phòng API trả về null)
+  const conceptsList = Array.isArray(photographer.concepts) ? photographer.concepts : [];
+
   return (
     <div 
       onClick={onClick}
       className="glass rounded-[32px] overflow-hidden group cursor-pointer border border-white/5 hover:border-photo-gold/40 transition-all duration-500 shadow-2xl flex flex-col h-full bg-white/[0.02]"
     >
-      <div className="relative aspect-[3/4] overflow-hidden bg-gray-900">
+      <div className="relative aspect-[3/4] overflow-hidden bg-gray-900 shrink-0">
         <img 
           src={photographer.avatar || "https://images.unsplash.com/photo-1554080353-a576cf803bda?q=80&w=1000&auto=format&fit=crop"} 
           alt={photographer.fullName} 
@@ -38,17 +41,37 @@ const PhotographerCard = ({ photographer, onClick }) => {
           Professional Artist
         </p>
 
-        <div className="space-y-3 mb-6">
+        <div className="space-y-3 mb-4">
           <div className="flex items-center gap-2 text-gray-400">
-            <MapPin size={14} className="text-photo-gold" />
-            <span className="text-xs font-bold">{photographer.location || "Toàn quốc"}</span>
+            <MapPin size={14} className="text-photo-gold shrink-0" />
+            <span className="text-xs font-bold truncate">{photographer.location || "Toàn quốc"}</span>
           </div>
           
           <div className="flex items-center gap-2 text-gray-400">
-            <Camera size={14} className="text-photo-gold" />
+            <Camera size={14} className="text-photo-gold shrink-0" />
             <span className="text-xs font-bold text-white uppercase tracking-tighter">
                 {photographer.basePrice?.toLocaleString()} ₫ <span className="text-[10px] text-gray-500">/ buổi</span>
             </span>
+          </div>
+        </div>
+
+        {/* 🌟 MỚI: KHU VỰC HIỂN THỊ THẺ CONCEPT */}
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-1.5">
+            {conceptsList.length > 0 ? (
+              conceptsList.map((concept, index) => (
+                <span 
+                  key={index} 
+                  className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap"
+                >
+                  {concept}
+                </span>
+              ))
+            ) : (
+              <span className="px-2 py-1 bg-white/5 border border-dashed border-white/10 rounded-lg text-[9px] font-bold text-gray-600 uppercase tracking-widest">
+                Đa phong cách
+              </span>
+            )}
           </div>
         </div>
 

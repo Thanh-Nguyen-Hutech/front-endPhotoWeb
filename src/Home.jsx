@@ -17,7 +17,6 @@ const Home = () => {
       try {
         const response = await axiosClient.get('/Posts');
         const data = Array.isArray(response.data) ? response.data : [];
-        // Đảo ngược để bài mới nhất lên đầu
         setPosts(data.reverse()); 
       } catch (error) {
         console.error("Lỗi tải bài đăng:", error);
@@ -32,11 +31,10 @@ const Home = () => {
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <Navbar />
       
-      <main className="pt-24 px-6 pb-12 max-w-[1400px] mx-auto">
+      <main className="pt-4 px-6 pb-12 max-w-[1400px] mx-auto">
         <Banner />
 
-        {/* Tiêu đề mục khám phá */}
-        <div className="flex items-center justify-between mb-10 mt-16">
+        <div className="flex items-center justify-between mb-8 mt-8">
             <h2 className="text-3xl md:text-4xl font-black border-l-4 border-photo-gold pl-5 uppercase tracking-tighter flex items-center gap-3 italic">
               <ImageIcon className="text-photo-gold" size={32} />
               Khám phá nghệ thuật
@@ -62,23 +60,25 @@ const Home = () => {
              <p className="text-gray-500 font-black uppercase tracking-widest text-lg">Chưa có tác phẩm nào.</p>
           </div>
         ) : (
-          /* ✅ ĐÃ SỬA: Chuyển từ columns sang grid để các hàng luôn thẳng tắp */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {posts.map((post) => {
               
               const firstPhotoUrl = post.photos && post.photos.length > 0 ? post.photos[0].url : null;
-              // Chống lỗi Mixed Content (http sang https)
               const displayImage = firstPhotoUrl ? firstPhotoUrl.replace("http://", "https://") : FALLBACK_IMAGE;
 
               return (
                 <div 
                   key={post.id} 
-                  onClick={() => navigate(`/post/${post.id}`)} 
+                  
+                  // 🌟 QUAN TRỌNG: Điều hướng sang trang Profile của Thợ, sử dụng PhotographerId từ API trả về
+                  // Nếu muốn ấn vào ảnh ra trang chi tiết bài post thì đổi thành: navigate(`/post/${post.id}`)
+                  onClick={() => navigate(`/profile/${post.photographerId}`)} 
+                  
                   className="glass rounded-[32px] overflow-hidden group cursor-pointer border border-white/5 hover:border-photo-gold/40 transition-all duration-500 shadow-2xl flex flex-col h-full hover:-translate-y-2"
                 >
                   
-                  {/* ✅ KHUNG ẢNH: Tỉ lệ 4:5 chuẩn Portfolio quốc tế */}
-                  <div className="relative aspect-[4/5] overflow-hidden bg-gray-900 shadow-inner">
+                  {/* KHUNG ẢNH */}
+                  <div className="relative aspect-[4/5] overflow-hidden bg-gray-900 shadow-inner shrink-0">
                     <img 
                       src={displayImage} 
                       alt={post.title} 
@@ -86,7 +86,6 @@ const Home = () => {
                       onError={(e) => { e.target.src = FALLBACK_IMAGE; }} 
                     />
                     
-                    {/* Overlay Gradient khi hover */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-6">
                        <div className="flex items-center gap-5 translate-y-4 group-hover:translate-y-0 transition-transform duration-500 text-white">
                           <div className="flex items-center gap-2 font-black text-sm">
@@ -97,14 +96,20 @@ const Home = () => {
                             <MessageCircle size={20} className="text-photo-gold" /> 
                             {post.comments?.length || 0}
                           </div>
-                          <button className="ml-auto p-2 bg-white/10 rounded-full hover:bg-photo-gold hover:text-black transition-all">
+                          <button 
+                            className="ml-auto p-2 bg-white/10 rounded-full hover:bg-photo-gold hover:text-black transition-all"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Tránh click nhầm vào card
+                              alert("Tính năng chia sẻ đang phát triển!");
+                            }}
+                          >
                             <Share2 size={16} />
                           </button>
                        </div>
                     </div>
                   </div>
 
-                  {/* ✅ NỘI DUNG DƯỚI ẢNH */}
+                  {/* NỘI DUNG DƯỚI ẢNH */}
                   <div className="p-6 flex flex-col flex-grow justify-between bg-white/[0.01]">
                     <div className="mb-6">
                       <h3 className="text-white font-black truncate text-lg group-hover:text-photo-gold transition-colors uppercase tracking-tight italic">
@@ -115,11 +120,22 @@ const Home = () => {
                     {/* Footer của Card: Thông tin NAG */}
                     <div className="flex items-center justify-between border-t border-white/5 pt-5 mt-auto">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-photo-gold to-orange-500 p-[1.5px] shadow-lg">
-                          <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-[10px] text-photo-gold font-black uppercase border border-black">
-                            {post.photographerName?.[0] || 'P'}
-                          </div>
+                        
+                        {/* Hiển thị Avatar */}
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-photo-gold to-orange-500 p-[1.5px] shadow-lg shrink-0">
+                          {post.photographerAvatar || post.avatar ? (
+                            <img 
+                              src={post.photographerAvatar || post.avatar} 
+                              alt={post.photographerName} 
+                              className="w-full h-full rounded-full object-cover border border-black"
+                            />
+                          ) : (
+                            <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-[10px] text-photo-gold font-black uppercase border border-black">
+                              {post.photographerName?.[0] || 'P'}
+                            </div>
+                          )}
                         </div>
+
                         <div className="flex flex-col min-w-0">
                             <span className="text-white text-[13px] font-black leading-none truncate">
                                 {post.photographerName || "NAG Giấu Tên"}
@@ -131,7 +147,7 @@ const Home = () => {
                       </div>
                       
                       {post.photos?.length > 1 && (
-                        <div className="bg-white/10 px-2 py-1 rounded-lg text-[9px] font-black text-gray-400 border border-white/5 uppercase tracking-tighter">
+                        <div className="bg-white/10 px-2 py-1 rounded-lg text-[9px] font-black text-gray-400 border border-white/5 uppercase tracking-tighter shrink-0 ml-2">
                             +{post.photos.length - 1} ảnh
                         </div>
                       )}

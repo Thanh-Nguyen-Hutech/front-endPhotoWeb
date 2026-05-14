@@ -2,30 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import axiosClient from './utils/axiosClient';
-import { ArrowLeft, MapPin, Heart, Image as ImageIcon, Camera } from 'lucide-react';
+import { ArrowLeft, MapPin, Heart, Image as ImageIcon, Camera, DollarSign, MessageCircle } from 'lucide-react';
 
 const PhotographerProfile = () => {
-  const { name } = useParams();
+  // 🌟 ĐÃ FIX: Nhận ID từ URL thay vì Name
+  const { id } = useParams(); 
   const navigate = useNavigate();
-  const decodedName = decodeURIComponent(name); 
   
+  const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        // ✅ CHỈ LẤY BÀI CỦA ĐÚNG NGƯỜI NÀY
-        const response = await axiosClient.get(`/Posts?PhotographerName=${decodedName}`);
-        setPosts(Array.isArray(response.data) ? response.data : []);
+        setLoading(true);
+        
+        // 1. Gọi API lấy thông tin Cá nhân bằng ID
+        try {
+          const profileRes = await axiosClient.get(`/Users/profile/${id}`);
+          setProfile(profileRes.data);
+        } catch (profileErr) {
+          console.error("Lỗi lấy thông tin cá nhân:", profileErr);
+        }
+
+        // 2. Gọi API lấy danh sách Bài đăng lọc theo ID
+        const postsRes = await axiosClient.get(`/Posts?PhotographerId=${id}`);
+        setPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
+
       } catch (error) {
         console.error("Lỗi khi tải trang cá nhân:", error);
       } finally {
         setLoading(false);
       }
     };
+    
     fetchProfileData();
-  }, [decodedName]);
+  }, [id]);
+
+  const handleContact = () => {
+    const phone = profile?.phoneNumber || "Chưa cập nhật";
+    const name = profile?.fullName || "Nhiếp ảnh gia";
+    alert(`📞 Kênh liên hệ với ${name}:\nSố điện thoại: ${phone}`);
+  };
 
   const totalLikes = posts.reduce((sum, p) => sum + (p.likesCount || p.likes || 0), 0);
 
@@ -36,6 +55,9 @@ const PhotographerProfile = () => {
       </div>
     );
   }
+
+  // Tên hiển thị (Phòng trường hợp chưa load xong data)
+  const displayName = profile?.fullName || "Nhiếp ảnh gia FOTOZ";
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -51,19 +73,33 @@ const PhotographerProfile = () => {
         <div className="glass p-8 md:p-12 rounded-[40px] border border-white/5 mb-12 relative overflow-hidden flex flex-col items-center text-center shadow-[0_0_40px_rgba(250,204,21,0.05)]">
             <div className="absolute inset-0 bg-gradient-to-b from-photo-gold/5 to-transparent pointer-events-none"></div>
             
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-photo-gold to-orange-500 p-1 mb-6 shadow-2xl relative z-10">
-                <div className="w-full h-full bg-black rounded-full flex items-center justify-center border-4 border-[#141414] text-4xl font-black text-photo-gold">
-                    {decodedName ? decodedName.charAt(0).toUpperCase() : '?'}
-                </div>
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-photo-gold to-orange-500 p-1 mb-6 shadow-2xl relative z-10 overflow-hidden shrink-0">
+                {profile?.avatar ? (
+                  <img src={profile.avatar} alt={displayName} className="w-full h-full object-cover rounded-full border-4 border-[#141414]" />
+                ) : (
+                  <div className="w-full h-full bg-black rounded-full flex items-center justify-center border-4 border-[#141414] text-4xl font-black text-photo-gold">
+                      {displayName.charAt(0).toUpperCase()}
+                  </div>
+                )}
             </div>
 
             <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-3 relative z-10">
-                {decodedName || "Nhiếp ảnh gia ẩn danh"}
+                {displayName}
             </h1>
             
-            <p className="text-gray-400 font-medium max-w-lg mb-8 relative z-10">
-                Chào mừng bạn đến với không gian nghệ thuật của tôi. Chuyên chụp ảnh chân dung, kỷ yếu và sự kiện.
+            <p className="text-gray-400 font-medium max-w-lg mb-6 relative z-10 whitespace-pre-wrap">
+                {profile?.bio || "Chào mừng bạn đến với không gian nghệ thuật của tôi. Nhiếp ảnh gia chưa cập nhật lời giới thiệu."}
             </p>
+
+            {profile?.concepts && profile.concepts.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-2 mb-8 relative z-10">
+                {profile.concepts.map((c, i) => (
+                  <span key={i} className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold text-photo-gold uppercase tracking-widest">
+                    {c}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div className="flex flex-wrap justify-center gap-6 md:gap-12 relative z-10">
                 <div className="text-center">
@@ -75,14 +111,33 @@ const PhotographerProfile = () => {
                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Lượt thích</p>
                 </div>
                 <div className="text-center">
-                    <p className="text-3xl font-black text-photo-gold flex items-center justify-center gap-1"><MapPin size={24}/> VN</p>
+                    <p className="text-3xl font-black text-photo-gold flex items-center justify-center gap-1"><MapPin size={24}/> {profile?.location || "VN"}</p>
                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Khu vực</p>
                 </div>
+                {profile?.basePrice > 0 && (
+                  <div className="text-center hidden sm:block">
+                      <p className="text-3xl font-black text-photo-gold flex items-center justify-center gap-1"><DollarSign size={24}/> {profile.basePrice.toLocaleString()}₫</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Giá cơ bản / Buổi</p>
+                  </div>
+                )}
             </div>
 
-            <button onClick={() => navigate('/book-now')} className="mt-10 bg-photo-gold text-black px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-photo-gold/20 hover:bg-yellow-400 hover:scale-105 transition-all relative z-10">
+            <div className="flex items-center gap-4 mt-10 relative z-10">
+              <button 
+                onClick={() => navigate('/book-now', { 
+                    state: { 
+                        photographerId: profile?.id, 
+                        photographerName: profile?.fullName 
+                    } 
+                })} 
+                className="bg-photo-gold text-black px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(250,204,21,0.3)] hover:bg-yellow-400 hover:scale-105 transition-all relative z-10"
+            >
                 Đặt lịch chụp ngay
             </button>
+              <button onClick={handleContact} className="bg-white/10 text-white border border-white/20 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all flex items-center gap-2">
+                  <MessageCircle size={16} /> Liên hệ
+              </button>
+            </div>
         </div>
 
         {/* LƯỚI TÁC PHẨM */}
