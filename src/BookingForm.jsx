@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom'; // 🌟 THÊM IMPORT NÀY
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom'; // 🌟 Đã thêm useParams
 import axiosClient from './utils/axiosClient';
 import Navbar from './components/Navbar';
-import { Sparkles, Send, MapPin, Type, Calendar, Wallet, UserCircle } from 'lucide-react'; // 🌟 THÊM UserCircle
+import { Sparkles, Send, MapPin, Type, Calendar, Wallet, UserCircle, Home } from 'lucide-react'; 
 
 const categories = [
   { id: 'canhan', name: 'Cá nhân', image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=500&auto=format&fit=crop' },
@@ -13,19 +13,82 @@ const categories = [
 ];
 
 const BookingForm = () => {
-  // 🌟 KHỞI TẠO HOOK ĐỂ NHẬN DỮ LIỆU TỪ TRANG PROFILE
+  const { photographerId } = useParams(); // 🌟 ĐÃ THÊM: Lấy ID thợ từ URL
   const location = useLocation();
   const navigate = useNavigate();
-  const directPhotographer = location.state || null;
+  
+  // Lấy tên thợ truyền từ trang Profile qua State để hiển thị UI
+  const photographerName = location.state?.photographerName || "Nhiếp ảnh gia";
 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [title, setTitle] = useState('');
-  const [bookingLocation, setBookingLocation] = useState(''); // Đổi tên để tránh trùng với location của react-router
   const [shootingDate, setShootingDate] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [details, setDetails] = useState('');
-  const [loading, setLoading] = useState(false); // Thêm state loading để chống spam click
+  const [loading, setLoading] = useState(false); 
+  
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+
+  const [selectedProvince, setSelectedProvince] = useState({ code: '', name: '' });
+  const [selectedDistrict, setSelectedDistrict] = useState({ code: '', name: '' });
+  const [selectedWard, setSelectedWard] = useState({ code: '', name: '' });
+  const [streetAddress, setStreetAddress] = useState('');
+
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      try {
+        const res = await fetch('https://provinces.open-api.vn/api/p/');
+        const data = await res.json();
+        setProvinces(data);
+      } catch (error) {
+        console.error("Lỗi tải danh sách Tỉnh/Thành:", error);
+      }
+    };
+    fetchProvinces();
+  }, []);
+
+  const handleProvinceChange = async (e) => {
+    const code = e.target.value;
+    const name = e.target.options[e.target.selectedIndex].text;
+    
+    setSelectedProvince({ code, name });
+    setSelectedDistrict({ code: '', name: '' });
+    setSelectedWard({ code: '', name: '' });
+    setWards([]); 
+
+    if (code) {
+      const res = await fetch(`https://provinces.open-api.vn/api/p/${code}?depth=2`);
+      const data = await res.json();
+      setDistricts(data.districts);
+    } else {
+      setDistricts([]);
+    }
+  };
+
+  const handleDistrictChange = async (e) => {
+    const code = e.target.value;
+    const name = e.target.options[e.target.selectedIndex].text;
+
+    setSelectedDistrict({ code, name });
+    setSelectedWard({ code: '', name: '' });
+
+    if (code) {
+      const res = await fetch(`https://provinces.open-api.vn/api/d/${code}?depth=2`);
+      const data = await res.json();
+      setWards(data.wards);
+    } else {
+      setWards([]);
+    }
+  };
+
+  const handleWardChange = (e) => {
+    const code = e.target.value;
+    const name = e.target.options[e.target.selectedIndex].text;
+    setSelectedWard({ code, name });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,32 +98,60 @@ const BookingForm = () => {
       return;
     }
 
+    if (!selectedProvince.name) {
+      alert("Vui lòng chọn ít nhất Tỉnh/Thành phố!");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const payload = {
-        title: title,
-        content: details,
-        serviceType: selectedCategory,
-        includeMakeup: false,
-        includeStudio: false,
-        minPrice: minPrice ? Number(minPrice) : 0,
-        maxPrice: maxPrice ? Number(maxPrice) : 0,
-        shootingDate: new Date(shootingDate).toISOString(),
-        location: bookingLocation,
-        // 🌟 GỬI KÈM ID THỢ NẾU LÀ ĐẶT TRỰC TIẾP
-        photographerId: directPhotographer ? directPhotographer.photographerId : null
-      };
+      const fullLocation = [
+        streetAddress,
+        selectedWard.name,
+        selectedDistrict.name,
+        selectedProvince.name
+      ].filter(Boolean).join(', '); 
+
+      const finalPrice = maxPrice
+  ? Number(maxPrice)
+  : minPrice
+    ? Number(minPrice)
+    : 0;
+
+const payload = {
+  title: title,
+  content: details,
+  serviceType: selectedCategory,
+
+  includeMakeup: false,
+  includeStudio: false,
+
+  minPrice: minPrice ? Number(minPrice) : 0,
+  maxPrice: maxPrice ? Number(maxPrice) : 0,
+
+  // QUAN TRỌNG
+  totalPrice: finalPrice,
+
+  shootingDate: new Date(shootingDate).toISOString(),
+
+  location: fullLocation,
+
+  photographerId: photographerId || null,
+
+  status: photographerId
+    ? "WaitingApproval"
+    : "Pending"
+};
 
       await axiosClient.post('/Bookings', payload);
 
-      if (directPhotographer) {
-        alert(`🎉 Tuyệt vời! Đã gửi yêu cầu trực tiếp đến nghệ sĩ ${directPhotographer.photographerName}.`);
+      if (photographerId) {
+        alert(`🎉 Tuyệt vời! Đã gửi yêu cầu trực tiếp đến thợ nhiếp ảnh.`);
       } else {
         alert(`🎉 Tuyệt vời! Yêu cầu "${title}" đã được đăng lên hệ thống tìm thợ thành công.`);
       }
       
-      // Chuyển hướng về trang Lịch sử để khách xem tiến độ đơn
       navigate('/my-history');
 
     } catch (error) {
@@ -82,13 +173,12 @@ const BookingForm = () => {
       
       <main className="pt-28 px-6 pb-12 max-w-[1200px] mx-auto">
         
-        {/* 🌟 NẾU ĐẶT TRỰC TIẾP, HIỂN THỊ BANNER ĐẶC BIỆT */}
-        {directPhotographer ? (
+        {photographerId ? (
           <div className="mb-10 p-6 bg-gradient-to-r from-photo-gold/20 to-transparent border-l-4 border-photo-gold rounded-r-2xl flex items-center gap-4 animate-in slide-in-from-left-4">
             <UserCircle size={40} className="text-photo-gold" />
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Đang đặt lịch trực tiếp với</p>
-              <h2 className="text-2xl font-black text-photo-gold uppercase tracking-tighter">{directPhotographer.photographerName}</h2>
+              <h2 className="text-2xl font-black text-photo-gold uppercase tracking-tighter">{photographerName}</h2>
             </div>
           </div>
         ) : (
@@ -138,9 +228,59 @@ const BookingForm = () => {
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tiêu đề (Vd: Chụp kỷ yếu lớp)" className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-photo-gold outline-none transition-all" required />
                 </div>
 
-                <div className="relative group">
-                  <MapPin className="absolute left-3 top-3 text-gray-500 group-focus-within:text-photo-gold transition-colors" size={20} />
-                  <input type="text" value={bookingLocation} onChange={(e) => setBookingLocation(e.target.value)} placeholder="Địa điểm (Vd: Hồ Gươm, Hà Nội)" className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-photo-gold outline-none transition-all" required />
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                  <p className="text-[10px] font-black text-photo-gold uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <MapPin size={14}/> Địa điểm chụp
+                  </p>
+                  
+                  <select 
+                    value={selectedProvince.code} 
+                    onChange={handleProvinceChange} 
+                    className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-photo-gold outline-none transition-all cursor-pointer appearance-none text-sm" 
+                    required
+                  >
+                    <option value="" disabled>-- Chọn Tỉnh / Thành phố --</option>
+                    {provinces.map((p) => (
+                      <option key={p.code} value={p.code} className="bg-[#050505] text-white">{p.name}</option>
+                    ))}
+                  </select>
+
+                  <div className="flex gap-3">
+                    <select 
+                      value={selectedDistrict.code} 
+                      onChange={handleDistrictChange} 
+                      disabled={!selectedProvince.code}
+                      className="w-1/2 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-photo-gold outline-none transition-all cursor-pointer appearance-none disabled:opacity-50 text-sm" 
+                    >
+                      <option value="" disabled>Quận / Huyện</option>
+                      {districts.map((d) => (
+                        <option key={d.code} value={d.code} className="bg-[#050505] text-white">{d.name}</option>
+                      ))}
+                    </select>
+
+                    <select 
+                      value={selectedWard.code} 
+                      onChange={handleWardChange} 
+                      disabled={!selectedDistrict.code}
+                      className="w-1/2 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-photo-gold outline-none transition-all cursor-pointer appearance-none disabled:opacity-50 text-sm" 
+                    >
+                      <option value="" disabled>Phường / Xã</option>
+                      {wards.map((w) => (
+                        <option key={w.code} value={w.code} className="bg-[#050505] text-white">{w.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="relative group mt-2">
+                    <Home className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-photo-gold transition-colors" size={16} />
+                    <input 
+                      type="text" 
+                      value={streetAddress} 
+                      onChange={(e) => setStreetAddress(e.target.value)} 
+                      placeholder="Số nhà, Tên đường, Toà nhà..." 
+                      className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-photo-gold outline-none transition-all text-sm" 
+                    />
+                  </div>
                 </div>
 
                 <div className="relative group">

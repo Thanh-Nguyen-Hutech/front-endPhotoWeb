@@ -12,7 +12,8 @@
   "dependencies": {
     "@microsoft/signalr": "^10.0.0",
     "axios": "^1.13.6",
-    "html2pdf.js": "^0.14.0",
+    "browser-image-compression": "^2.0.2",
+    "framer-motion": "^12.38.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^1.0.1",

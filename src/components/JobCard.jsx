@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Tag, User, CheckCircle } from 'lucide-react';
+import { MapPin, Tag, User, Send } from 'lucide-react';
 
 const JobCard = ({ job, onAccept }) => {
   return (
@@ -18,7 +18,7 @@ const JobCard = ({ job, onAccept }) => {
             </p>
           </div>
         </div>
-
+        
         <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
           <span className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
             <MapPin size={14} className="text-photo-gold"/> {job.location}
@@ -34,12 +34,12 @@ const JobCard = ({ job, onAccept }) => {
           {job.price}
         </p>
         
-        {/* ✅ NÚT NHẬN JOB: Luôn hiển thị cho thợ ảnh */}
+        {/* ✅ NÚT ỨNG TUYỂN: Đã đổi chữ và icon để hợp với luồng Khách duyệt */}
         <button 
           onClick={() => onAccept(job.id)}
           className="w-full md:w-auto bg-photo-gold text-black px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-yellow-400 transition-all shadow-lg shadow-photo-gold/20 active:scale-95 flex items-center justify-center gap-2"
         >
-          <CheckCircle size={16} /> Nhận buổi chụp
+          <Send size={16} /> Ứng tuyển Job này
         </button>
       </div>
     </div>

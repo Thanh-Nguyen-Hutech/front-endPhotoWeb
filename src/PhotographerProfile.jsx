@@ -5,7 +5,7 @@ import axiosClient from './utils/axiosClient';
 import { ArrowLeft, MapPin, Heart, Image as ImageIcon, Camera, DollarSign, MessageCircle } from 'lucide-react';
 
 const PhotographerProfile = () => {
-  // 🌟 ĐÃ FIX: Nhận ID từ URL thay vì Name
+  // id ở đây là chuỗi GUID lấy từ URL
   const { id } = useParams(); 
   const navigate = useNavigate();
   
@@ -17,19 +17,26 @@ const PhotographerProfile = () => {
     const fetchProfileData = async () => {
       try {
         setLoading(true);
-        
-        // 1. Gọi API lấy thông tin Cá nhân bằng ID
+
+        // 1. Lấy thông tin chi tiết thợ ảnh
+        const userRes = await axiosClient.get(`/Users/profile/${id}`);
+        // Xử lý dữ liệu an toàn dựa trên cấu trúc axiosClient của bạn
+        const userData = userRes.data !== undefined ? userRes.data : userRes;
+        setProfile(userData);
+
+        // 2. Lấy danh sách bài viết Portfolio của thợ đó
         try {
-          const profileRes = await axiosClient.get(`/Users/profile/${id}`);
-          setProfile(profileRes.data);
-        } catch (profileErr) {
-          console.error("Lỗi lấy thông tin cá nhân:", profileErr);
+          // Ưu tiên tìm theo userId để chính xác tuyệt đối
+          const postsRes = await axiosClient.get(`/Posts?userId=${id}`);
+          const postData = postsRes.data !== undefined ? postsRes.data : postsRes;
+          setPosts(Array.isArray(postData) ? postData : []);
+        } catch (postErr) {
+          // Fallback: Tìm theo tên nếu API userId chưa sẵn sàng
+          const fallbackRes = await axiosClient.get(`/Posts?PhotographerName=${encodeURIComponent(userData.fullName)}`);
+          const fallbackData = fallbackRes.data !== undefined ? fallbackRes.data : fallbackRes;
+          setPosts(Array.isArray(fallbackData) ? fallbackData : []);
         }
-
-        // 2. Gọi API lấy danh sách Bài đăng lọc theo ID
-        const postsRes = await axiosClient.get(`/Posts?PhotographerId=${id}`);
-        setPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
-
+        
       } catch (error) {
         console.error("Lỗi khi tải trang cá nhân:", error);
       } finally {
@@ -37,7 +44,7 @@ const PhotographerProfile = () => {
       }
     };
     
-    fetchProfileData();
+    if (id) fetchProfileData();
   }, [id]);
 
   const handleContact = () => {
@@ -50,119 +57,115 @@ const PhotographerProfile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-photo-gold border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#050A15] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-[#BDE8F5] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
-  // Tên hiển thị (Phòng trường hợp chưa load xong data)
   const displayName = profile?.fullName || "Nhiếp ảnh gia FOTOZ";
+  // Chuẩn hóa link avatar sang https
+  const avatarUrl = profile?.avatar?.replace("http://", "https://");
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-[#050A15] text-white italic">
       <Navbar />
       
       <main className="pt-28 px-4 sm:px-6 pb-12 max-w-[1200px] mx-auto">
         
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 hover:text-photo-gold transition-colors font-bold text-xs uppercase tracking-widest mb-8">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 hover:text-[#BDE8F5] transition-colors font-bold text-xs uppercase tracking-widest mb-8">
           <ArrowLeft size={16} /> Quay lại
         </button>
 
         {/* BOX THÔNG TIN CÁ NHÂN */}
-        <div className="glass p-8 md:p-12 rounded-[40px] border border-white/5 mb-12 relative overflow-hidden flex flex-col items-center text-center shadow-[0_0_40px_rgba(250,204,21,0.05)]">
-            <div className="absolute inset-0 bg-gradient-to-b from-photo-gold/5 to-transparent pointer-events-none"></div>
+        <div className="bg-[#0F172A]/40 backdrop-blur-xl p-8 md:p-12 rounded-[40px] border border-white/5 mb-12 relative overflow-hidden flex flex-col items-center text-center shadow-[0_0_40px_rgba(189,232,245,0.05)]">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#BDE8F5]/5 to-transparent pointer-events-none"></div>
             
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-photo-gold to-orange-500 p-1 mb-6 shadow-2xl relative z-10 overflow-hidden shrink-0">
-                {profile?.avatar ? (
-                  <img src={profile.avatar} alt={displayName} className="w-full h-full object-cover rounded-full border-4 border-[#141414]" />
-                ) : (
-                  <div className="w-full h-full bg-black rounded-full flex items-center justify-center border-4 border-[#141414] text-4xl font-black text-photo-gold">
-                      {displayName.charAt(0).toUpperCase()}
-                  </div>
-                )}
+            {/* 🌟 PHẦN AVATAR ĐÃ FIX ĐỂ HIỂN THỊ ẢNH CẬP NHẬT */}
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-[#BDE8F5] to-blue-500 p-1 mb-6 shadow-2xl relative z-10">
+                <div className="w-full h-full bg-[#050A15] rounded-full flex items-center justify-center border-4 border-[#141414] overflow-hidden">
+                    {avatarUrl ? (
+                      <img 
+                        src={avatarUrl} 
+                        alt={displayName} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.target.style.display = 'none'; }} // Ẩn ảnh nếu link lỗi để hiện chữ cái sau lưng
+                      />
+                    ) : (
+                      <span className="text-4xl font-black text-[#BDE8F5]">
+                        {displayName.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                </div>
             </div>
 
-            <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-3 relative z-10">
+            <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-3 relative z-10 not-italic">
                 {displayName}
             </h1>
             
-            <p className="text-gray-400 font-medium max-w-lg mb-6 relative z-10 whitespace-pre-wrap">
-                {profile?.bio || "Chào mừng bạn đến với không gian nghệ thuật của tôi. Nhiếp ảnh gia chưa cập nhật lời giới thiệu."}
+            <p className="text-gray-400 font-medium max-w-lg mb-8 relative z-10 not-italic">
+                {profile?.bio || "Chào mừng bạn đến với không gian nghệ thuật của tôi. Chuyên chụp ảnh chân dung, kỷ yếu và sự kiện."}
             </p>
 
-            {profile?.concepts && profile.concepts.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-2 mb-8 relative z-10">
-                {profile.concepts.map((c, i) => (
-                  <span key={i} className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold text-photo-gold uppercase tracking-widest">
-                    {c}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-wrap justify-center gap-6 md:gap-12 relative z-10">
+            <div className="flex flex-wrap justify-center gap-6 md:gap-12 relative z-10 not-italic">
                 <div className="text-center">
-                    <p className="text-3xl font-black text-photo-gold">{posts.length}</p>
+                    <p className="text-3xl font-black text-[#BDE8F5]">{posts.length}</p>
                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Tác phẩm</p>
                 </div>
                 <div className="text-center">
-                    <p className="text-3xl font-black text-photo-gold">{totalLikes}</p>
+                    <p className="text-3xl font-black text-[#BDE8F5]">{totalLikes}</p>
                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Lượt thích</p>
                 </div>
                 <div className="text-center">
-                    <p className="text-3xl font-black text-photo-gold flex items-center justify-center gap-1"><MapPin size={24}/> {profile?.location || "VN"}</p>
+                    <p className="text-3xl font-black text-[#BDE8F5] flex items-center justify-center gap-1"><MapPin size={24}/> {profile?.location || "VN"}</p>
                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Khu vực</p>
                 </div>
                 {profile?.basePrice > 0 && (
                   <div className="text-center hidden sm:block">
-                      <p className="text-3xl font-black text-photo-gold flex items-center justify-center gap-1"><DollarSign size={24}/> {profile.basePrice.toLocaleString()}₫</p>
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Giá cơ bản / Buổi</p>
+                      <p className="text-3xl font-black text-[#BDE8F5] flex items-center justify-center gap-1">
+                        <DollarSign size={24}/> {profile.basePrice.toLocaleString()}₫
+                      </p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Giá cơ bản</p>
                   </div>
                 )}
             </div>
 
-            <div className="flex items-center gap-4 mt-10 relative z-10">
+            <div className="flex gap-4 mt-10 relative z-10 not-italic">
               <button 
-                onClick={() => navigate('/book-now', { 
-                    state: { 
-                        photographerId: profile?.id, 
-                        photographerName: profile?.fullName 
-                    } 
-                })} 
-                className="bg-photo-gold text-black px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(250,204,21,0.3)] hover:bg-yellow-400 hover:scale-105 transition-all relative z-10"
-            >
-                Đặt lịch chụp ngay
-            </button>
-              <button onClick={handleContact} className="bg-white/10 text-white border border-white/20 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all flex items-center gap-2">
+                onClick={() => navigate(`/book-now/${id}`, { state: { photographerName: displayName } })} 
+                className="bg-[#BDE8F5] text-[#0F2854] px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-[#BDE8F5]/20 hover:bg-white hover:scale-105 transition-all"
+              >
+                  Đặt lịch chụp
+              </button>
+              <button onClick={handleContact} className="bg-white/10 text-white border border-white/20 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all flex items-center gap-2">
                   <MessageCircle size={16} /> Liên hệ
               </button>
             </div>
         </div>
 
         {/* LƯỚI TÁC PHẨM */}
-        <div className="mb-8 flex items-center gap-3 border-l-4 border-photo-gold pl-4">
-            <Camera className="text-photo-gold" size={28} />
-            <h2 className="text-2xl font-black uppercase tracking-tighter">Tác phẩm nổi bật</h2>
+        <div className="mb-8 flex items-center gap-3 border-l-4 border-[#BDE8F5] pl-4">
+            <Camera className="text-[#BDE8F5]" size={28} />
+            <h2 className="text-2xl font-black uppercase tracking-tighter italic">Tác phẩm nổi bật</h2>
         </div>
 
         {posts.length === 0 ? (
-          <div className="glass text-center py-32 rounded-[40px] border border-dashed border-white/10">
+          <div className="bg-[#0F172A]/20 text-center py-32 rounded-[40px] border border-dashed border-white/10 not-italic">
             <ImageIcon size={64} className="mx-auto text-gray-700 mb-6" />
             <p className="text-xl font-bold text-gray-400">Thợ chụp này chưa có tác phẩm nào.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 not-italic">
             {posts.map(post => (
-              <div key={post.id} onClick={() => navigate(`/post/${post.id}`)} className="group cursor-pointer bg-white/5 rounded-3xl overflow-hidden border border-white/5 hover:border-photo-gold/30 transition-all hover:-translate-y-2 shadow-lg">
+              <div key={post.id} onClick={() => navigate(`/post/${post.id}`)} className="group cursor-pointer bg-white/5 rounded-3xl overflow-hidden border border-white/5 hover:border-[#BDE8F5]/30 transition-all hover:-translate-y-2 shadow-lg">
                 <div className="aspect-[4/5] overflow-hidden relative">
-                  <img src={post.photos?.[0]?.url || 'https://via.placeholder.com/400x500'} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <img src={post.photos?.[0]?.url?.replace("http://", "https://") || 'https://via.placeholder.com/400x500'} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity"></div>
                   
                   <div className="absolute bottom-0 left-0 p-6 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform">
-                    <h3 className="text-xl font-black uppercase tracking-tighter mb-2 text-white">{post.title}</h3>
+                    <h3 className="text-xl font-black uppercase tracking-tighter mb-2 text-white truncate">{post.title}</h3>
                     <div className="flex items-center gap-4 text-xs font-bold text-gray-300 uppercase tracking-widest">
-                      <span className="flex items-center gap-1 text-photo-gold"><Heart size={14} className="fill-current"/> {post.likesCount || 0}</span>
+                      <span className="flex items-center gap-1 text-[#BDE8F5]"><Heart size={14} className="fill-current"/> {post.likesCount || 0}</span>
                       <span>{new Date(post.createdAt).toLocaleDateString('vi-VN')}</span>
                     </div>
                   </div>

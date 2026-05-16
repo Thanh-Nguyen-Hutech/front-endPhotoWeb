@@ -7,9 +7,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        'photo-gold': '#facc15', // Vàng rực rỡ cho các nút bấm quan trọng
-        'photo-black': '#0a0a0a', // Đen sâu thẳm cho nền
-        'photo-gray': '#1a1a1a', // Xám đậm cho các thẻ (Card)
+        brand: {
+          darkest: '#0F2854',   // Nền sâu nhất
+          primary: '#1C4D8D',   // Màu chính (Card, Header)
+          medium: '#4988C4',    // Màu phụ (Borders, Muted text)
+          lightest: '#BDE8F5',  // Màu nhấn (Text quan trọng, Button)
+        }
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',

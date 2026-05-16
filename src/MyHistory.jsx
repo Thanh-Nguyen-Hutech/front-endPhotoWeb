@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import axiosClient from './utils/axiosClient';
 import ChatRoom from './components/ChatRoom';
-import ReceivedGallery from './components/ReceivedGallery'; // 🌟 Import component đã đổi tên
-import { History, XCircle, Clock, CheckCircle, Calendar, MapPin, MessageCircle, CheckSquare, UserCircle, CreditCard, Image as ImageIcon, Loader2 } from 'lucide-react';
+import ReceivedGallery from './components/ReceivedGallery'; 
+import CustomerApprovals from './components/CustomerApprovals'; 
+import { History, XCircle, Calendar, MapPin, MessageCircle, CreditCard, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 const MyHistory = () => {
   const [historyList, setHistoryList] = useState([]);
@@ -23,11 +24,8 @@ const MyHistory = () => {
     try {
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      const payload = JSON.parse(jsonPayload);
-      currentUserId = payload.nameid; // Đồng nhất ID để chat
+      const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+      currentUserId = payload.nameid; 
     } catch (error) {
       console.error("Token error:", error);
     }
@@ -61,14 +59,35 @@ const MyHistory = () => {
       const res = await axiosClient.post('/Payments/create-url', { bookingId, amount });
       window.location.href = res.data.url;
     } catch (error) {
-      alert("Cổng thanh toán đang bảo trì.");
+      alert("Cổng thanh toán đang bảo trì hoặc chuỗi Hash cấu hình chưa chính xác.");
     }
+  };
+
+  const handleOpenChat = (booking) => {
+    setSelectedChat(booking);
+    setShowChatModal(true);
+  };
+
+  const renderPrice = (min, max) => {
+    const hasMin = min > 0;
+    const hasMax = max > 0;
+
+    if (hasMin && hasMax) return `${min.toLocaleString()} - ${max.toLocaleString()} ₫`;
+    if (hasMin && !hasMax) return `Từ ${min.toLocaleString()} ₫`;
+    if (!hasMin && hasMax) return `Đến ${max.toLocaleString()} ₫`;
+    
+    return "GIÁ THỎA THUẬN";
   };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <Navbar />
       <main className="pt-28 px-4 sm:px-6 pb-12 max-w-[1100px] mx-auto">
+        
+        <div className="mb-12">
+          <CustomerApprovals />
+        </div>
+
         <div className="flex items-center gap-3 mb-10 border-l-4 border-photo-gold pl-5 animate-in slide-in-from-left-4 duration-700">
           <History className="text-photo-gold" size={36} />
           <h2 className="text-3xl font-black tracking-tighter uppercase">Lịch sử đặt lịch</h2>
@@ -80,10 +99,17 @@ const MyHistory = () => {
           <div className="grid grid-cols-1 gap-6">
             {historyList.map((item, index) => {
               const status = item.status?.toLowerCase() || '';
-              const isAccepted = ['accepted', 'confirmed'].includes(status);
+              
+              // 🌟 CHỈ ẨN ĐƠN KHẢO SÁT CÔNG KHAI CHƯA CÓ AI APPLY
+              if (status === 'waitingapproval' && !item.photographerId) return null;
+
+              // PHÂN PHỐI ĐIỀU KIỆN TRẠNG THÁI BIỆT LẬP
+              const isDirectPending = status === 'directpending'; // Đơn đặt đích danh từ Profile chờ thợ duyệt
+              const isWaitingApproval = status === 'waitingapproval'; // Đơn công khai thợ xin việc chờ khách duyệt
+              const isAccepted = ['accepted', 'confirmed', 'approved'].includes(status);
               const isCompleted = ['completed', 'done', 'success'].includes(status);
               const isPaid = status === 'paid'; 
-              const isCancelled = ['cancelled', 'rejected'].includes(status);
+              const isCancelled = ['cancelled', 'rejected', 'declined'].includes(status);
 
               return (
                 <div key={item.id} className="glass p-6 sm:p-10 rounded-[40px] flex flex-col md:flex-row justify-between items-center gap-8 border border-white/5 hover:border-photo-gold/20 transition-all duration-500 shadow-2xl group">
@@ -94,11 +120,18 @@ const MyHistory = () => {
                         {item.photographerName?.charAt(0) || "P"}
                       </div>
                       <div>
-                        <h3 className="text-2xl font-black group-hover:text-photo-gold transition-colors">{item.photographerName || "Chờ thợ nhận..."}</h3>
+                        <h3 className="text-2xl font-black group-hover:text-photo-gold transition-colors">
+                          {item.photographerName || "Hệ thống đang tìm thợ..."}
+                        </h3>
+                        
+                        {/* 🌟 ĐỒNG BỘ HIỂN THỊ BADGE PHÍA USER CHUẨN NÉT */}
                         <div className="flex gap-2 mt-2">
-                           {isPaid && <span className="text-[10px] bg-green-500/10 text-green-400 px-3 py-1 rounded-full font-black border border-green-400/20 uppercase tracking-widest">Đã cọc</span>}
-                           {isCompleted && <span className="text-[10px] bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full font-black border border-blue-400/20 uppercase tracking-widest">Hoàn thành</span>}
-                           {isCancelled && <span className="text-[10px] bg-red-500/10 text-red-400 px-3 py-1 rounded-full font-black border border-red-400/20 uppercase tracking-widest">Đã hủy</span>}
+                           {isDirectPending && <span className="text-[10px] bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded-full font-black border border-yellow-400/20 uppercase tracking-widest animate-pulse">⏳ Chờ thợ xác nhận đơn</span>}
+                           {isWaitingApproval && <span className="text-[10px] bg-orange-500/10 text-orange-400 px-3 py-1 rounded-full font-black border border-orange-400/20 uppercase tracking-widest">🔍 Đang chờ bạn duyệt thợ</span>}
+                           {isAccepted && <span className="text-[10px] bg-teal-500/10 text-teal-400 px-3 py-1 rounded-full font-black border border-teal-400/20 uppercase tracking-widest">✨ Lịch chụp đã chốt</span>}
+                           {isPaid && <span className="text-[10px] bg-green-500/10 text-green-400 px-3 py-1 rounded-full font-black border border-green-400/20 uppercase tracking-widest">💳 Đã cọc thành công</span>}
+                           {isCompleted && <span className="text-[10px] bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full font-black border border-blue-400/20 uppercase tracking-widest">🏆 Đã hoàn thành</span>}
+                           {isCancelled && <span className="text-[10px] bg-red-500/10 text-red-400 px-3 py-1 rounded-full font-black border border-red-400/20 uppercase tracking-widest">❌ Đã hủy lịch</span>}
                         </div>
                       </div>
                     </div>
@@ -110,18 +143,18 @@ const MyHistory = () => {
                   </div>
 
                   <div className="flex flex-col md:items-end gap-4 w-full md:w-auto min-w-[220px]">
-                    <div className="text-3xl font-black text-photo-gold tracking-tighter">
-                        {item.maxPrice > 0 ? `${item.minPrice.toLocaleString()} ₫` : "GIÁ THỎA THUẬN"}
+                    <div className="text-2xl sm:text-3xl font-black text-photo-gold tracking-tighter text-right">
+                        {renderPrice(item.minPrice, item.maxPrice)}
                     </div>
                     
                     <div className="w-full flex flex-col gap-2">
+                      {/* Chỉ hiện nút thanh toán VNPay khi thợ chụp đã nhấn đồng ý tiếp nhận */}
                       {isAccepted && !isPaid && (
                         <button onClick={() => handlePayment(item.id, 500000)} className="w-full py-4 bg-blue-600/20 text-blue-400 border border-blue-600/30 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
                           <CreditCard size={16} /> Thanh toán cọc (VNPay)
                         </button>
                       )}
 
-                      {/* NÚT VÀNG: XEM ẢNH - Chỉ hiện khi hoàn thành */}
                       {isCompleted && (
                         <button 
                           onClick={() => { setSelectedGallery(item); setShowGalleryModal(true); }} 
@@ -154,7 +187,7 @@ const MyHistory = () => {
           </div>
         )}
 
-        {/* MODAL GALLERY (FULLSCREEN OVERLAY) */}
+        {/* MODAL GALLERY */}
         {showGalleryModal && selectedGallery && (
           <div className="fixed inset-0 z-[150] flex flex-col bg-[#050505] overflow-y-auto animate-in slide-in-from-bottom-full duration-500">
             <div className="sticky top-0 z-20 bg-[#050505]/95 backdrop-blur-2xl border-b border-white/10 p-5 px-8 flex justify-between items-center shadow-2xl">

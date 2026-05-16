@@ -5,7 +5,7 @@ import axiosClient from './utils/axiosClient';
 import { Heart, MessageCircle, Share2, Camera, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1000&auto=format&fit=crop";
+const FALLBACK_IMAGE = "https://i.pinimg.com/1200x/3f/70/89/3f7089504cfb524a595d23b068f12b2e.jpg";
 
 const Home = () => {
   const [posts, setPosts] = useState([]);
@@ -16,8 +16,9 @@ const Home = () => {
     const fetchPosts = async () => {
       try {
         const response = await axiosClient.get('/Posts');
-        const data = Array.isArray(response.data) ? response.data : [];
-        setPosts(data.reverse()); 
+        // Xử lý an toàn dữ liệu từ axiosClient
+        const data = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+        setPosts([...data].reverse()); 
       } catch (error) {
         console.error("Lỗi tải bài đăng:", error);
       } finally {
@@ -62,22 +63,17 @@ const Home = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {posts.map((post) => {
-              
               const firstPhotoUrl = post.photos && post.photos.length > 0 ? post.photos[0].url : null;
               const displayImage = firstPhotoUrl ? firstPhotoUrl.replace("http://", "https://") : FALLBACK_IMAGE;
 
               return (
                 <div 
                   key={post.id} 
-                  
-                  // 🌟 QUAN TRỌNG: Điều hướng sang trang Profile của Thợ, sử dụng PhotographerId từ API trả về
-                  // Nếu muốn ấn vào ảnh ra trang chi tiết bài post thì đổi thành: navigate(`/post/${post.id}`)
-                  onClick={() => navigate(`/profile/${post.photographerId}`)} 
-                  
+                  // 🌟 FIX: Khi click vào card nói chung, sẽ vào trang CHI TIẾT BÀI ĐĂNG
+                  onClick={() => navigate(`/post/${post.id}`)} 
                   className="glass rounded-[32px] overflow-hidden group cursor-pointer border border-white/5 hover:border-photo-gold/40 transition-all duration-500 shadow-2xl flex flex-col h-full hover:-translate-y-2"
                 >
                   
-                  {/* KHUNG ẢNH */}
                   <div className="relative aspect-[4/5] overflow-hidden bg-gray-900 shadow-inner shrink-0">
                     <img 
                       src={displayImage} 
@@ -99,7 +95,7 @@ const Home = () => {
                           <button 
                             className="ml-auto p-2 bg-white/10 rounded-full hover:bg-photo-gold hover:text-black transition-all"
                             onClick={(e) => {
-                              e.stopPropagation(); // Tránh click nhầm vào card
+                              e.stopPropagation(); // ❗ Ngăn click vào card
                               alert("Tính năng chia sẻ đang phát triển!");
                             }}
                           >
@@ -109,7 +105,6 @@ const Home = () => {
                     </div>
                   </div>
 
-                  {/* NỘI DUNG DƯỚI ẢNH */}
                   <div className="p-6 flex flex-col flex-grow justify-between bg-white/[0.01]">
                     <div className="mb-6">
                       <h3 className="text-white font-black truncate text-lg group-hover:text-photo-gold transition-colors uppercase tracking-tight italic">
@@ -117,15 +112,19 @@ const Home = () => {
                       </h3>
                     </div>
                     
-                    {/* Footer của Card: Thông tin NAG */}
                     <div className="flex items-center justify-between border-t border-white/5 pt-5 mt-auto">
-                      <div className="flex items-center gap-3">
-                        
-                        {/* Hiển thị Avatar */}
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-photo-gold to-orange-500 p-[1.5px] shadow-lg shrink-0">
+                      {/* 🌟 FIX: Phần thông tin thợ ảnh sẽ có onClick riêng để vào PROFILE */}
+                      <div 
+                        className="flex items-center gap-3 hover:opacity-70 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation(); // ❗ Quan trọng: Ngăn navigate vào bài viết
+                          navigate(`/profile/${post.photographerId}`);
+                        }}
+                      >
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-photo-gold to-orange-500 p-[1.5px] shadow-lg shrink-0 overflow-hidden">
                           {post.photographerAvatar || post.avatar ? (
                             <img 
-                              src={post.photographerAvatar || post.avatar} 
+                              src={(post.photographerAvatar || post.avatar).replace("http://", "https://")} 
                               alt={post.photographerName} 
                               className="w-full h-full rounded-full object-cover border border-black"
                             />

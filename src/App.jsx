@@ -3,6 +3,8 @@ import { useState } from 'react';
 import Navbar from './components/Navbar';
 import Login from './Login';
 import Register from './Register';
+import ForgotPassword from './ForgotPassword'; // 🌟 ĐÃ THÊM: Import trang Quên mật khẩu
+import ChangePassword from './ChangePassword'; // 🌟 ĐÃ THÊM: Import trang Đổi mật khẩu để sửa lỗi Not Defined
 import Home from './Home';
 import BookingList from './BookingList';
 import BookingForm from './BookingForm';
@@ -14,6 +16,7 @@ import PhotographerDashboard from './PhotographerDashboard';
 import BookingManager from './BookingManager';
 import ReportBug from './components/ReportBug';
 import PaymentResult from './components/PaymentResult';
+import axiosClient from './utils/axiosClient';
 
 // Import Admin Components
 import AdminLayout from './Admin/AdminLayout';
@@ -21,6 +24,7 @@ import AdminDashboard from './Admin/AdminDashboard';
 import ManageUsers from './Admin/ManageUsers';
 import ManagePosts from './Admin/ManagePosts'; 
 import ManageReports from './Admin/ManageReports';
+import ManageResetRequests from './Admin/ManageResetRequests';
 
 function App() {
   const [authTick, setAuthTick] = useState(0);
@@ -47,6 +51,7 @@ function App() {
           <Route path="users" element={<ManageUsers />} />
           <Route path="posts" element={<ManagePosts />} /> 
           <Route path="reports" element={<ManageReports />} />
+          <Route path="resets" element={<ManageResetRequests />} />
         </Route>
 
         {/* 🏠 LUỒNG NGƯỜI DÙNG & NHIẾP ẢNH GIA */}
@@ -62,8 +67,15 @@ function App() {
                   <Route path="/" element={<Home />} />
                   <Route path="/login" element={<Login onLoginSuccess={refreshNavbar} />} />
                   <Route path="/register" element={<Register />} />
+                  
+                  {/* 🌟 Route cho trang Quên mật khẩu */}
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  
+                  {/* 🌟 ĐÃ DI CHUYỂN: Trang đổi mật khẩu đưa lên trước dấu * */}
+                  <Route path="/change-password" element={<ChangePassword />} />
+
                   <Route path="/booking-list" element={<BookingList />} />
-                  <Route path="/book-now" element={<BookingForm />} />
+                  <Route path="/book-now/:photographerId" element={<BookingForm />} />
                   <Route path="/create-post" element={<CreatePost />} />
                   <Route path="/post/:id" element={<PostDetail />} />
                   <Route path="/profile/:id" element={<PhotographerProfile />} />
@@ -71,6 +83,7 @@ function App() {
                   <Route path="/booking-manager" element={<BookingManager />} />
                   <Route path="/my-history" element={<MyHistory />} />
                   <Route path="/payment-result" element={<PaymentResult />} />
+                  
                   {/* Trang lỗi/Không tìm thấy */}
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
